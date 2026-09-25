@@ -1,6 +1,6 @@
 # Six-Month Voluntary Attrition: Initial Analysis
 
-Leo Lin
+Leo Lin  
 Data Reporting and Analytics Consultant
 
 ## Question
