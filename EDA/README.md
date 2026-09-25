@@ -1,7 +1,8 @@
 # Six-Month Voluntary Attrition: Initial Analysis
 
 Leo Lin  
-Data Reporting and Analytics Consultant
+Data Reporting and Analytics Consultant  
+Kaiser Permanente
 
 ## Question
 
