@@ -1,8 +1,5 @@
 # Six-Month Voluntary Attrition: Initial Analysis
 
-Leo Lin  
-Data Reporting and Analytics Consultant
-
 ## Question
 
 Can information known at a monthly workforce snapshot help identify employees with higher relative risk of voluntary attrition in the following six months? I am exploring this question for Workforce Analytics at Kaiser Permanente so HR leaders can focus review and retention planning where it may be most useful. A risk score is not a prediction of certainty or a reason to make an individual employment decision.
@@ -27,4 +24,4 @@ The baseline is a comparison point, not the final model. In the separate modelin
 
 ## Notebook
 
-[Exploratory Data Analysis notebook](https://github.com/leosj168/workforce-attrition-capstone/blob/main/EDA/attrition_model_EDA.ipynb)
+[Exploratory Data Analysis notebook](REPLACE_WITH_GITHUB_NOTEBOOK_URL)
