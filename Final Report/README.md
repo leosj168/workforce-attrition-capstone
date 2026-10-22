@@ -23,11 +23,13 @@ I created the SQL Server stored procedure `Attrition.Employee_Comp_Monthly`. It 
 
 The source contains **3,273,117 employee-month records across 36 snapshots**, October 2023–September 2026. Of these, **2,548,054 records through January 2026** have complete outcomes. These are monthly records, not unique employees across the entire history.
 
-The inital EDA found uncommon exits, around **1.3%**, and shorter median tenure among employees who later left—roughly **three years versus nine years**. Pay-position differences were smaller. Department patterns and unusual pay values required business context, rather than causal conclusions. These findings guided the final inputs and evaluation approach.
+The initial EDA found uncommon exits, around **1.3%**, and shorter median tenure among employees who later left—roughly **three years versus nine years**. Pay-position differences were smaller. Department patterns and unusual pay values required business context, rather than causal conclusions. These findings guided the final inputs and evaluation approach.
 
 ![Validation outcome balance and current workforce tenure and pay distributions](images/data_overview.png)
 
 The left panel shows June 2025 validation, where **1.25%** of records have the target exit. The other panels describe September 2026 employees, whose mature outcomes are not yet known.
+
+**Data access and reproduction:** The underlying workforce data are private and are not included in this repository. A full notebook rerun requires authorized access to the internal SQL Server source and a local `sql_connection.local.json` file or an `ATTRITION_SQLALCHEMY_URL` environment setting. The saved aggregate notebook outputs can be reviewed without database access.
 
 ## 4. Data Preprocessing/Preparation
 
@@ -53,7 +55,7 @@ I compared three classifiers on the same selected inputs:
 | Random Forest | Capture nonlinear patterns through combined trees | Focused randomized search over tree complexity |
 | Histogram Gradient Boosting | Capture interactions through sequential trees | Grid search across eight simpler configurations |
 
-All searches use the same two calendar-based development checks. The selected booster limits each tree to **five leaves**, requires at least **1,000 records per leaf**, and uses stronger regularization to reduce overfitting. Its internal early-stopping split is random within training, a qualification discussed in the notebook.
+All searches use the same two calendar-based development checks. The selected booster limits each tree to **five leaves**, requires at least **1,000 records per leaf**, and uses an L2 penalty of **10** to reduce overfitting. Its internal early-stopping split is random within training, a qualification discussed in the notebook.
 
 ## 6. Model Evaluation
 
@@ -65,17 +67,17 @@ Eligibility requires at least **25% validation recall** and a training-to-develo
 
 | Model | AP | Precision | Recall | Reviews | Development gap |
 |---|---:|---:|---:|---:|---:|
-| Logistic Regression | 3.38% | 4.79% | 25.0% | 5,974 | 2.05 pp |
-| Random Forest | 3.51% | 4.87% | 25.0% | 5,877 | 6.43 pp |
-| **Gradient Boosting** | **3.71%** | **5.37%** | **25.0%** | **5,326** | **3.65 pp** |
+| Logistic Regression | 3.36% | 4.72% | 25.0% | 6,056 | 2.17 pp |
+| Random Forest | 3.56% | 5.08% | 25.0% | 5,627 | 6.60 pp |
+| **Gradient Boosting** | **3.75%** | **5.30%** | **25.0%** | **5,399** | **3.77 pp** |
 
-Gradient Boosting was selected. It captured the same **286 of 1,142 validation exit cases** as Logistic Regression with **648 fewer reviews— a 10.8% reduction**. Random Forest failed the development-gap safeguard. See the [review-workload comparison](images/model_comparison.png).
+Gradient Boosting was selected. It captured the same **286 of 1,142 validation exit cases** as Logistic Regression with **657 fewer reviews—a 10.8% reduction**. Random Forest failed the development-gap safeguard. See Section 13.1 of the [executed notebook](attrition_model_train_reg.ipynb) for the refreshed review-workload chart.
 
-The January historical replay was weaker for boosting: **23.6% recall and 5.72% precision**, versus **25.0% and 5.87%** for Logistic Regression. January had already been inspected during development, so it is not independent confirmation. Most exit cases remain outside the list, and no retention intervention effect has been measured.
+The January historical replay was weaker for boosting: **23.7% recall and 5.74% precision**, versus **25.2% and 5.87%** for Logistic Regression. January had already been inspected during development, so it is not independent confirmation. Most exit cases remain outside the list, and no retention intervention effect has been measured.
 
 **Findings and next steps:**
 
 - Treat the validation workload improvement as promising, retain Logistic Regression as a benchmark, and test a later untouched period.
 - Verify salary definitions, work arrangements and missing manager history before drawing HR conclusions. Both manager turnover-history fields are entirely missing in the current scored export.
-- Ask HR leaders to assess capacity for **4,287 High-band employees out of 90,493 current employees**, then consider a supportive pilot after data and performance checks. Evaluate review usefulness and intervention outcomes separately.
+- Ask HR leaders to assess capacity for **4,478 High-band employees out of 90,493 current employees**, then consider a supportive pilot after data and performance checks. Evaluate review usefulness and intervention outcomes separately.
 
