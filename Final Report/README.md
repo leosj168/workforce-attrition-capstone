@@ -9,7 +9,7 @@
 
 HR teams cannot review every employee individually. I explored whether monthly workforce information could identify a more focused group for supportive retention review over the following six months.
 
-The goal is to find potential exit cases while keeping review work manageable. Challenges include uncommon exits, repeated monthly records, incomplete recent outcomes and changing workforce conditions. The model supports planning; it does not establish why someone leaves or what employment action should follow.
+The goal is to find potential exit cases while keeping review work manageable. Challenges include the low number of exits, repeated monthly records, incomplete recent outcomes and changing workforce conditions. The model supports planning; it does not establish why someone leaves or what employment action should follow.
 
 ## 2. Model Outcomes or Predictions
 
@@ -23,17 +23,17 @@ I created the SQL Server stored procedure `Attrition.Employee_Comp_Monthly`. It 
 
 The source contains **3,273,117 employee-month records across 36 snapshots**, October 2023–September 2026. Of these, **2,548,054 records through January 2026** have complete outcomes. These are monthly records, not unique employees across the entire history.
 
-The initial EDA found uncommon exits, around **1.3%**, and shorter median tenure among employees who later left—roughly **three years versus nine years**. Pay-position differences were smaller. Department patterns and unusual pay values required business context, rather than causal conclusions. These findings guided the final inputs and evaluation approach.
+The initial EDA found exits are uncommon, around **1.3%**, and shorter median tenure among employees who later left—roughly **three years** versus nine years for those retained. Pay-position differences were smaller. Department patterns and unusual pay values required business context, rather than causal conclusions. These findings guided the final inputs and evaluation approach.
 
 ![Validation outcome balance and current workforce tenure and pay distributions](images/data_overview.png)
 
-The left panel shows June 2025 validation, where **1.25%** of records have the target exit. The other panels describe September 2026 employees, whose mature outcomes are not yet known.
+The left panel shows June 2025 validation, where **1.25%** of records have a voluntary exit. The other panels describe September 2026 employees, whose mature outcomes are not yet known.
 
 **Data access and reproduction:** The underlying workforce data are private and are not included in this repository. A full notebook rerun requires authorized access to the internal SQL Server source and a local `sql_connection.local.json` file or an `ATTRITION_SQLALCHEMY_URL` environment setting. The saved aggregate notebook outputs can be reviewed without database access.
 
 ## 4. Data Preprocessing/Preparation
 
-I checked duplicates, types, missingness and unusual ranges. Identifiers and future termination details were excluded from predictors. Non-finite values were treated as missing, with numeric replacements learned from training medians inside the pipelines and scaling where appropriate. Tested categories were imputed and one-hot encoded, but did not improve development results enough to retain them. The final models use **13 numeric inputs**, including engineered indicators and a pay–tenure interaction.
+I checked duplicates, types, missing data and unusual ranges. Identifiers, and future termination details were excluded from predictors. Non-finite values were treated as missing, with numeric replacements learned from training medians inside the pipelines and scaling where appropriate. Tested categories were imputed and one-hot encoded, but did not improve development results enough to retain them. The final models use **13 numeric inputs**, including engineered indicators and a pay–tenure interaction.
 
 Missing outcomes were never filled as retention. Excluding whole recent or incomplete snapshots removed **725,063 records** and left no missing targets in retained history.
 
@@ -47,7 +47,7 @@ These groups use a subset of the mature history. Calendar gaps keep earlier six-
 
 ## 5. Modeling
 
-I compared three classifiers on the same selected inputs:
+I compared three classificantion models on the same selected inputs:
 
 | Model | Purpose | Search |
 |---|---|---|
@@ -79,5 +79,5 @@ The January historical replay was weaker for boosting: **23.7% recall and 5.74% 
 
 - Treat the validation workload improvement as promising, retain Logistic Regression as a benchmark, and test a later untouched period.
 - Verify salary definitions, work arrangements and missing manager history before drawing HR conclusions. Both manager turnover-history fields are entirely missing in the current scored export.
-- Ask HR leaders to assess capacity for **4,478 High-band employees out of 90,493 current employees**, then consider a supportive pilot after data and performance checks. Evaluate review usefulness and intervention outcomes separately.
+- Ask HR leaders to assess capacity for **4,478 high-risk employees out of 90,493 current employees**, then consider a supportive pilot after data and performance checks. Evaluate review usefulness and intervention outcomes separately.
 
