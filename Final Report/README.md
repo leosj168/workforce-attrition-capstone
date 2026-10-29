@@ -3,89 +3,89 @@
 
 **Leo Lin · Workforce Planning & Analytics · Kaiser Permanente**
 
-**[Final Report notebook](https://github.com/leosj168/workforce-attrition-capstone/blob/main/Final%20Report/attrition_model_train_reg.ipynb)**
+**[Final Report Notebook](https://github.com/leosj168/workforce-attrition-capstone/blob/main/Final%20Report/attrition_model_train_reg.ipynb)**
 
 ## 1. Define the Problem Statement
 
-**Research question:** Can monthly workforce information be used to identify employees with a higher relative likelihood of voluntary attrition during the following six months, so Kaiser Permanente HR leaders can focus timely retention support?
+**Problem Statmenet:** Can monthly workforce information be used to identify employees with a higher relative likelihood of voluntary attrition during the following six months, so Kaiser Permanente HR leaders can focus timely retention support?
 
-When employees leave voluntarily, their departures can disrupt patient care and operations, add work for colleagues, and increase hiring and training costs. I wanted to see whether monthly HR records could help leaders decide where to begin a supportive retention review.
+When employees leave voluntarily, their departures can disrupt patient care and operations, add work for colleagues, and increase hiring and training costs. I wanted to see whether monthly employee workforce data could help leaders decide where to begin a supportive retention review.
 
-I used historical internal HR data with masked employee identifiers to build a ranking and compare it with an untargeted employee list. I also examined where review needs were concentrated. The data cover **Northern California and Executives**; use elsewhere in Kaiser Permanente would need separate evaluation.
+I used historical internal workforce data with masked employee identifiers to build a ranking and compare it with an untargeted employee list. I also examined where review needs were concentrated. The data cover business units in **Northern California and Executives**; use elsewhere in Kaiser Permanente would need separate evaluation.
 
 The model gives HR a starting point. Leaders still need employee, job, manager and local business context before considering support. This project measures how well the model prioritizes review. Whether that support prevents exits or reduces costs remains a question for a future pilot.
 
 ## 2. Model Outcomes or Predictions
 
-The task is **supervised binary classification**: learning from records with known outcomes to distinguish between two possibilities. For each employee at a monthly snapshot, the target is **1** for a qualifying voluntary exit within the next six months and **0** when no such exit is recorded. Other types of departure may still occur.
+This is **binary classification**: each employee-month is labeled **1** for a qualifying voluntary exit within six months and **0** otherwise. Other types of departure may still occur.
 
-The model assigns a score to help order the review list. A selected cutoff determines who appears on that list. Scores show relative review priority; they do not give a verified probability that someone will leave. Likewise, risk-band counts describe review workload rather than expected departures.
+Scores rank review priority. A cutoff creates the list; scores are not verified departure probabilities, and risk bands are not expected exit counts.
 
 ## 3. Data Acquisition
 
-I created the SQL Server stored procedure `Attrition.Employee_Comp_Monthly` to bring workforce, pay, performance and manager-team information together with exit outcomes. All data came through **one internal extract**, with no external dataset added.
+I built the SQL Server procedure `Attrition.Employee_Comp_Monthly` to combine workforce, pay, performance, manager-team and exit information.
 
-The source contains **3,273,117 employee-month records across 36 snapshots**, from October 2023 to September 2026. Of these, **2,548,054 records through January 2026** have complete six-month outcomes. An employee can appear in several months, so these totals do not represent different people throughout the history.
+The source has **3,273,117 employee-month records across 36 snapshots**, October 2023–September 2026. **2,548,054 records through January 2026** have complete outcomes. Employees can appear in several months.
 
-The initial exploratory data analysis (EDA) found that voluntary exits were uncommon, around **1.3%**. Employees who later had a qualifying exit had a median tenure of roughly **three years**, compared with nine years among those without that outcome. Pay-position differences were smaller. These patterns helped guide the modeling, while unusual pay values and department differences raised questions to check with HR. They did not establish why employees left.
+Initial exploratory analysis found exits were uncommon, around **1.3%**, and shorter median tenure among employees who later left: roughly **three years**, versus nine without the target exit. These patterns guided modeling without establishing causes.
 
 ![Validation outcome balance and current workforce tenure and pay distributions](images/data_overview.png)
 
-The left panel shows June 2025 validation, when **1.25%** of records had a qualifying voluntary exit in the following six months. The other panels describe September 2026 employees, whose complete six-month outcomes are not yet known.
+June 2025 validation has a **1.25%** exit rate. The tenure and pay panels describe September 2026 employees, whose complete outcomes are unknown.
 
-**Data access and reproduction:** The workforce data are private and are not included in the repository. Rerunning the full notebook requires authorized SQL Server access and either a local `sql_connection.local.json` file or an `ATTRITION_SQLALCHEMY_URL` environment setting. Readers can review the saved aggregate results without database access.
+**Access:** Workforce data are private and excluded from the repository. A full rerun needs authorized SQL access and `sql_connection.local.json` or `ATTRITION_SQLALCHEMY_URL`. Saved aggregate results can be reviewed without database access.
 
 ## 4. Data Preprocessing/Preparation
 
-Before modeling, I checked for duplicate records, missing values and unusual ranges. I excluded identifiers and future termination details from the inputs so the model could use only information available at the forecast date.
+I checked duplicates, missing values and unusual ranges, and excluded identifiers and future termination details. Pipelines learn numeric replacements and scaling from training data. Tested categories did not improve development results enough to keep. All models use **13 numeric inputs**, including a pay–tenure interaction.
 
-Preparation happens inside each modeling pipeline. Invalid numeric values are treated as missing and replaced with medians learned from training data. Inputs are scaled where appropriate. I also tested categorical inputs, filling missing categories and converting them to indicator columns through one-hot encoding, but they did not improve development results enough to keep. The final models use **13 numeric inputs**, including combined pay-and-tenure information.
+The fitted pay-position and manager-turnover flags combine missing values with negative conditions. This limitation needs a development-tested improvement before changing the model.
 
-An unknown outcome was never treated as evidence that an employee stayed. Removing whole recent or incomplete snapshots excluded **725,063 records** and left no missing outcomes in the retained history.
+I excluded **725,063 recent or incomplete records**, never treating unknown outcomes as retention. Evaluation uses this subset of complete history:
 
 | Purpose | Period | Records |
 |---|---|---:|
-| Training | October 2023–November 2024 | 1,272,081 |
-| Validation | June 2025 | 91,167 |
-| Historical check | January 2026 | 90,988 |
+| Training: learn patterns | October 2023–November 2024 | 1,272,081 |
+| Validation: choose model and cutoff | June 2025 | 91,167 |
+| Historical check: evaluate the fixed choice | January 2026 | 90,988 |
 
-These groups use part of the history with complete outcomes. Training helps the model learn patterns. Validation helps me choose the model and review cutoff. The historical check shows how that fixed choice performed later. Gaps between periods allow earlier six-month outcomes to finish before the next forecast date. Two earlier calendar checks within training guide input choices and model settings.
+Calendar gaps allow earlier six-month outcomes to finish before the next forecast. Two earlier checks within training guide input choices and settings.
 
 ## 5. Modeling
 
-I compared three classification models using the same selected inputs:
+| Model | Approach and settings tested |
+|---|---|
+| Logistic Regression | Weighted-score benchmark; grid search over regularization, weighting and training-only under-sampling |
+| Random Forest | Combined trees; randomized search over tree complexity |
+| Histogram Gradient Boosting | Sequential small trees; grid search across eight simpler configurations |
 
-| Model | How it works | Settings tested |
-|---|---|---|
-| Logistic Regression | Combines inputs into a weighted score and provides an interpretable benchmark | Grid search over regularization, class weighting and training-only under-sampling |
-| Random Forest | Combines decision trees to capture patterns a linear model may miss | Focused randomized search over tree complexity |
-| Histogram Gradient Boosting | Builds small trees in sequence to improve the ranking | Grid search across eight simpler configurations |
+All models use the same selected inputs and development periods. Logistic Regression selects 1:5 under-sampling, no class weighting, `C=1` and L2 regularization. Boosting uses **five leaves per tree**, at least **500 records per leaf**, and an L2 penalty of **5**.
 
-All searches use the same two calendar-based development checks. Regularization limits overly specific patterns, while class weighting and under-sampling address the uncommon exit outcome during training.
-
-The selected Gradient Boosting model limits each tree to **five leaves**, requires at least **1,000 records per leaf**, and uses an L2 regularization penalty of **10**. These controls reduce the chance of fitting details that do not carry forward. Its internal early-stopping check uses a random portion of training data, so that step does not follow calendar order. The notebook explains this limitation.
+The outer checks follow calendar order. Boosting's internal early-stopping split is random within training, a limitation discussed in the notebook.
 
 ## 6. Model Evaluation
 
-I used **average precision (AP)** as the main development measure because voluntary exits are uncommon. AP summarizes how well the ranking concentrates exit cases as the review list expands. Predicting no exit for everyone would be 98.75% accurate on validation while finding no exit cases, so accuracy alone would tell an incomplete story.
+**Average precision (AP)** summarizes ranking quality and guides development. Accuracy alone is misleading: predicting no exit would be **98.75% accurate** while finding no cases. **Recall** means cases found; **precision** means the list's observed exit share. ROC-AUC adds a ranking check.
 
-For HR, two measures make the tradeoff easier to understand. **Recall** is the share of later exit cases found on the list. **Precision** is the share of listed records that had a qualifying exit. At similar recall, higher precision means fewer reviews to find the same number of cases. ROC-AUC provides an additional check of ranking quality.
-
-To qualify for selection, a model had to capture at least **25% of validation exit cases** and keep its training AP within **five percentage points** of development AP. This gap is a check for overfitting. Among models meeting both conditions, I chose the one with higher validation precision, using list share and AP to break ties. The 25% target is a comparison assumption, not an agreed HR workload.
+Selection requires at least **25% validation recall** and a training-to-development AP gap within **five percentage points**. Among eligible models, higher precision wins; list share and AP break ties. HR has not agreed to the resulting workload.
 
 | Model | AP | Precision | Recall | Reviews | Development gap |
 |---|---:|---:|---:|---:|---:|
-| Logistic Regression | 3.36% | 4.72% | 25.0% | 6,056 | 2.17 pp |
-| Random Forest | 3.56% | 5.08% | 25.0% | 5,627 | 6.60 pp |
-| **Gradient Boosting** | **3.75%** | **5.30%** | **25.0%** | **5,399** | **3.77 pp** |
+| Logistic Regression | 2.67% | 3.59% | 25.0% | 7,964 | 2.15 pp |
+| Random Forest | 3.39% | 5.03% | 25.0% | 5,683 | 6.14 pp |
+| **Gradient Boosting** | **3.51%** | **5.03%** | **25.1%** | **5,701** | **4.52 pp** |
 
-Gradient Boosting was selected under this rule. It found the same **286 of 1,142 validation exit cases** as Logistic Regression with **657 fewer reviews, a 10.8% reduction**. Random Forest exceeded the allowed development gap. Section 13.1 of the [executed notebook](attrition_model_train_reg.ipynb) shows the review-workload comparison.
+**Gradient Boosting remains selected.** It finds **287 of 1,142 validation cases**, versus **286** for Logistic Regression, with **5,701 versus 7,964 reviews**: **2,263 fewer (28.4%)**. Random Forest fails the development-gap rule. An equally sized untargeted list would contain about **71 cases on average**, giving boosting **4.0 times** the exit concentration. This is a calculated reference, not a trial result. See Section 13.1 of the [executed notebook](attrition_model_train_reg.ipynb).
 
-The January historical check gave a more cautious result. Gradient Boosting achieved **23.7% recall and 5.74% precision**, compared with **25.2% and 5.87%** for Logistic Regression. Because January had already been reviewed during development, it cannot serve as independent confirmation. Most exit cases remain outside the list, and the project has not measured whether retention support prevents departures.
+**January is mixed:** boosting has higher precision (**5.59% versus 4.34%**) and AP (**4.09% versus 3.62%**), but lower recall (**23.4% versus 24.2%**). January has already informed development, so it is not independent confirmation. Most exit cases remain outside the list, and no retention effect has been measured.
 
-**Findings and next steps:**
+**Current workforce:** **4,987 of 90,493 employees** are in High, averaging **3.0 years** of tenure and **$80,834** annual salary. Manager history has **7.0%** missing six-month values and **11.8%** missing twelve-month values. These profiles frame HR questions, not causes.
 
-- **Check whether the improvement holds up.** The validation result suggests less review work for the same case coverage. Keep Logistic Regression as a benchmark and test a later period that has not informed development.
-- **Resolve data questions with HR and data owners.** Confirm salary definitions, work arrangements and missing manager history before interpreting patterns or recommending support.
-- **Agree on a manageable pilot.** The current model places **4,478 of 90,493 employees** in the High review-priority band. Ask HR what review capacity is realistic, then consider a supportive pilot after the data and performance checks. Measure whether the list helps reviewers and assess later retention outcomes separately.
-- **Consider deployment after a successful pilot.** If further validation and an HR pilot show useful results, establish a controlled scoring workflow with clear review ownership, access controls and ongoing performance checks. Explore Databricks as a possible platform.
+The corrected feature check compares the same **20,000 validation records** before and after **ten shuffles per input**. Salary and tenure show the largest ranking changes, followed by their interaction. This does not identify causes or effective retention actions.
+
+**Next steps:**
+
+- Verify pay definitions and remaining coverage gaps; test improved missing-flag handling on development data.
+- Keep Logistic Regression as a benchmark and test later untouched outcomes.
+- Agree on a limited retention-support trial; evaluate review usefulness and retention outcomes separately.
+- Consider controlled deployment after successful validation and a useful trial, with ownership, access controls and monitoring. Explore Databricks as a possible platform.
